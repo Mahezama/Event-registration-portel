@@ -1,0 +1,147 @@
+package eventportal;
+
+import java.sql.*;
+import java.util.Scanner;
+
+class DBConnection {
+    public static Connection getConnection() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            return DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/eventdb", "root", "password"
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
+
+class User {
+
+    public static boolean register(String username, String password) {
+        try {
+            Connection conn = DBConnection.getConnection();
+            String sql = "INSERT INTO users(username, password) VALUES (?, ?)";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+            return stmt.executeUpdate() > 0;
+        } catch (Exception e) {
+            System.out.println("Registration failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public static int login(String username, String password) {
+        try {
+            Connection conn = DBConnection.getConnection();
+            String sql = "SELECT id FROM users WHERE username=? AND password=?";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("id"); // successful login
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1; // login failed
+    }
+}
+
+class EventManager {
+
+    public static void createEvent(String name, String date) {
+        try {
+            Connection conn = DBConnection.getConnection();
+            String sql = "INSERT INTO events(name, date) VALUES (?, ?)";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, name);
+            stmt.setDate(2, Date.valueOf(date));
+            stmt.executeUpdate();
+            System.out.println("Event created successfully.");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void registerUserForEvent(int userId, int eventId) {
+        try {
+            Connection conn = DBConnection.getConnection();
+            String sql = "INSERT INTO registrations(user_id, event_id) VALUES (?, ?)";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setInt(1, userId);
+            stmt.setInt(2, eventId);
+            stmt.executeUpdate();
+            System.out.println("User registered for event.");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+public class EventPortalApp {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Welcome to the Event Registration Portal");
+
+        System.out.println("1. Register");
+        System.out.println("2. Login");
+        int choice = scanner.nextInt();
+        scanner.nextLine();
+
+        int userId = -1;
+        if (choice == 1) {
+            System.out.print("Enter username: ");
+            String username = scanner.nextLine();
+            System.out.print("Enter password: ");
+            String password = scanner.nextLine();
+            if (User.register(username, password)) {
+                System.out.println("Registration successful. Please login.");
+            } else {
+                System.out.println("Registration failed.");
+                return;
+            }
+        }
+
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+        userId = User.login(username, password);
+
+        if (userId == -1) {
+            System.out.println("Login failed.");
+            return;
+        }
+
+        System.out.println("Login successful.");
+
+        while (true) {
+            System.out.println("1. Create Event");
+            System.out.println("2. Register for Event");
+            System.out.println("3. Exit");
+            int action = scanner.nextInt();
+            scanner.nextLine();
+
+            if (action == 1) {
+                System.out.print("Enter event name: ");
+                String eventName = scanner.nextLine();
+                System.out.print("Enter event date (YYYY-MM-DD): ");
+                String eventDate = scanner.nextLine();
+                EventManager.createEvent(eventName, eventDate);
+            } else if (action == 2) {
+                System.out.print("Enter event ID to register: ");
+                int eventId = scanner.nextInt();
+                EventManager.registerUserForEvent(userId, eventId);
+            } else {
+                System.out.println("Goodbye!");
+                break;
+            }
+        }
+
+        scanner.close();
+    }
+}
